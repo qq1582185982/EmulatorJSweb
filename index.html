@@ -1,288 +1,471 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>EmulatorJS</title>
-        <link rel = icon href = docs/favicon.ico sizes = "16x16 32x32 48x48 64x64" type = image/vnd.microsoft.icon>
-        <meta name = viewport content = "width = device-width, initial-scale = 1">
-        <style>
-             body, html {
-                height: 100%;
-                background-color: black;
-                color: white;
-            }
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmulatorJS 游戏中心</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .filter-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .filter-bar .left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-bar select {
+            padding: 10px 15px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #logout-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        #logout-btn:hover {
+            background: #5568d3;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 25px;
+        }
+
+        .game-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
+        .game-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
+
+        .game-image {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+        }
+
+        .game-info {
+            padding: 20px;
+        }
+
+        .game-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .game-system {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-bottom: 10px;
+        }
+
+        .game-desc {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .no-games {
+            text-align: center;
+            color: white;
+            font-size: 1.5em;
+            margin-top: 50px;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
             body {
-                margin: 0;
-                overflow: hidden;
-            }
-
-            body, #box, #top {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                flex-direction: column;
-            }
-
-            #box {
-                color: #aaa;
-                height: 20em;
-                width: 30em;
-                max-width: 80%;
-                max-height: 80%;
-                background-color: #333;
-                border-radius: 0.4em;
-                border: 2px solid #555;
-                position: relative;
-                flex-direction: column;
-                transition-duration: 0.2s;
-                overflow: hidden;
-                font-family: monospace;
-                font-weight: bold;
-                font-size: 20px;
-                margin: 5px;
-                text-align: center;
                 padding: 10px;
             }
 
-            #box:hover, #box[drag] {
-                border-color: #1AAFFF;
-                color: #ddd
+            h1 {
+                font-size: 2em;
+                margin-bottom: 8px;
             }
 
-            #input {
-                cursor: pointer;
-                position: absolute;
-                left: 0;
-                top: 0;
+            .subtitle {
+                font-size: 1em;
+            }
+
+            header {
+                margin-bottom: 25px;
+            }
+
+            .filter-bar {
+                padding: 15px;
+                margin-bottom: 20px;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 15px;
+            }
+
+            .filter-bar .left {
+                flex-direction: column;
+                align-items: stretch;
+                margin-bottom: 0;
+                gap: 8px;
+            }
+
+            .filter-bar label {
+                margin-bottom: 0;
+            }
+
+            .filter-bar select {
+                padding: 10px 12px;
+                font-size: 14px;
                 width: 100%;
-                height: 100%;
-                opacity: 0;
             }
 
-            #display {
+            #logout-btn {
+                padding: 10px 16px;
+                font-size: 14px;
                 width: 100%;
-                height: 100%
+                margin-top: 0;
             }
 
-            select, button {
-                padding: 0.6em 0.4em;
-                margin: 0.5em;
-                width: 15em;
-                max-width: 100%;
-                font-family: monospace;
-                font-weight: bold;
-                font-size: 16px;
-                background-color: #444;
-                color: #aaa;
-                border-radius: 0.4em;
-                border: 1px solid #555;
-                cursor: pointer;
-                transition-duration: 0.2s
+            .games-grid {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 15px;
             }
 
-            select:hover, button:hover {
-                background-color: #666;
-                color: #ddd
+            .game-image {
+                height: 140px;
+                font-size: 2em;
             }
 
-            .logo {
-                width: 130px;
-                height: 130px;
-                filter: drop-shadow(0 0 8px white);
+            .game-info {
+                padding: 15px;
             }
 
-            #top {
-                margin: 5px;
+            .game-title {
+                font-size: 1em;
             }
-        </style>
-    </head>
 
-    <body>
-        <div id="top">
-            <h1>EmulatorJS Demo</h1>
-            <img src="docs/Logo-light.png" alt="Logo" class="logo">
-            <br>
+            .game-desc {
+                font-size: 0.85em;
+            }
+        }
+
+        /* 小屏手机适配 */
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .subtitle {
+                font-size: 0.9em;
+            }
+
+            .games-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 12px;
+            }
+
+            .game-image {
+                height: 120px;
+                font-size: 1.8em;
+            }
+
+            .game-info {
+                padding: 12px;
+            }
+
+            .game-title {
+                font-size: 0.95em;
+            }
+
+            .game-system {
+                font-size: 0.8em;
+                padding: 4px 10px;
+            }
+
+            .game-desc {
+                font-size: 0.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 EmulatorJS 游戏中心</h1>
+            <p class="subtitle">在线游玩经典游戏，存档自动云端保存</p>
+        </header>
+
+        <div class="filter-bar">
+            <div class="left">
+                <label>筛选游戏机：</label>
+                <select id="systemFilter" onchange="filterGames()">
+                    <option value="all">全部游戏机</option>
+                    <optgroup label="🎮 任天堂 Nintendo">
+                        <option value="nes">任天堂 NES</option>
+                        <option value="snes">超级任天堂 SNES</option>
+                        <option value="n64">任天堂 64</option>
+                        <option value="nds">任天堂 DS</option>
+                        <option value="gba">Game Boy Advance</option>
+                        <option value="gb">Game Boy</option>
+                        <option value="vb">Virtual Boy</option>
+                    </optgroup>
+                    <optgroup label="🎮 世嘉 Sega">
+                        <option value="segaMD">世嘉 MD / Genesis</option>
+                        <option value="segaMS">世嘉 Master System</option>
+                        <option value="segaGG">世嘉 Game Gear</option>
+                        <option value="segaCD">世嘉 CD</option>
+                        <option value="sega32x">世嘉 32X</option>
+                        <option value="segaSaturn">世嘉 Saturn</option>
+                    </optgroup>
+                    <optgroup label="🎮 索尼 Sony">
+                        <option value="psx">PlayStation</option>
+                        <option value="psp">PlayStation Portable</option>
+                    </optgroup>
+                    <optgroup label="🎮 雅达利 Atari">
+                        <option value="atari2600">Atari 2600</option>
+                        <option value="atari5200">Atari 5200</option>
+                        <option value="atari7800">Atari 7800</option>
+                        <option value="lynx">Atari Lynx</option>
+                        <option value="jaguar">Atari Jaguar</option>
+                    </optgroup>
+                    <optgroup label="💻 Commodore">
+                        <option value="c64">Commodore 64</option>
+                        <option value="c128">Commodore 128</option>
+                        <option value="amiga">Commodore Amiga</option>
+                        <option value="vic20">Commodore VIC-20</option>
+                    </optgroup>
+                    <optgroup label="🕹️ 其他 Other">
+                        <option value="arcade">街机 Arcade</option>
+                        <option value="mame2003">MAME 2003</option>
+                        <option value="3do">3DO</option>
+                        <option value="coleco">ColecoVision</option>
+                    </optgroup>
+                </select>
+            </div>
+            <button id="logout-btn" onclick="logout()">退出登录</button>
         </div>
-        <div id="box">
-            <input type="file" id ="input" title="Upload" />
-            Drag ROM file or click here
+
+        <div class="games-grid" id="gamesGrid">
+            <!-- 游戏卡片将由JavaScript动态生成 -->
         </div>
 
-        <script>
-            let enableDebug = false;
-            let enableThreads = false;
-            let browserMode;
-            const queryString = window.location.search;
-            const urlParams = new URLSearchParams(queryString);
-            if (parseInt(urlParams.get("debug")) === 1 || urlParams.get("debug") === "true") {
-                enableDebug = true;
-                console.log("Debug is enabled");
-            } else {
-                console.log("Debug is disabled");
+        <div class="no-games" id="noGames" style="display:none;">
+            暂无游戏，请先上传ROM文件到服务器
+        </div>
+    </div>
+
+    <script>
+        // 游戏数据配置
+        const gamesConfig = {
+            nes: {
+                name: '任天堂 NES',
+                color: '#E60012',
+                icon: '🎮',
+                games: []
+            },
+            snes: {
+                name: '超级任天堂',
+                color: '#8F8F8F',
+                icon: '🎯',
+                games: []
+            },
+            gba: {
+                name: 'GBA',
+                color: '#5E2CA5',
+                icon: '🎰',
+                games: []
+            },
+            gb: {
+                name: 'Game Boy',
+                color: '#9BBC0F',
+                icon: '📱',
+                games: []
+            },
+            n64: {
+                name: '任天堂64',
+                color: '#0066CC',
+                icon: '🎲',
+                games: []
+            },
+            psx: {
+                name: 'PlayStation',
+                color: '#003791',
+                icon: '🎪',
+                games: []
+            }
+        };
+
+        // 从服务器加载游戏列表
+        async function loadGames() {
+            try {
+                const response = await fetch('/api/list-games');
+                const systems = await response.json();
+
+                // 转换为扁平的游戏列表
+                const allGames = [];
+                systems.forEach(sys => {
+                    sys.games.forEach(game => {
+                        allGames.push({
+                            system: sys.system,
+                            name: game.name,
+                            file: game.file,
+                            description: game.desc || '经典游戏'
+                        });
+                    });
+                });
+
+                window.allGamesList = allGames;
+                window.systemsList = systems;
+                renderGames(allGames);
+            } catch (error) {
+                console.error('加载游戏列表失败:', error);
+                document.getElementById('gamesGrid').style.display = 'none';
+                document.getElementById('noGames').style.display = 'block';
+            }
+        }
+
+        // 渲染游戏列表
+        function renderGames(games) {
+            const grid = document.getElementById('gamesGrid');
+            const noGames = document.getElementById('noGames');
+
+            if (games.length === 0) {
+                grid.style.display = 'none';
+                noGames.style.display = 'block';
+                return;
             }
 
-            if (parseInt(urlParams.get("threads")) === 1 || urlParams.get("threads") === "true") {
-                if (window.SharedArrayBuffer) {
-                    enableThreads = true;
-                    console.log("Threads are enabled");
-                } else {
-                    console.warn("Threads are disabled as SharedArrayBuffer is not available. Threads requires two headers to be set when sending you html page. See https://stackoverflow.com/a/68630724");
-                    console.log("Threads are disabled");
-                }
-            } else {
-                console.log("Threads are disabled");
+            grid.style.display = 'grid';
+            noGames.style.display = 'none';
+            grid.innerHTML = '';
+
+            games.forEach(game => {
+                const systemInfo = gamesConfig[game.system] || { name: game.system, color: '#666', icon: '🎮' };
+                const card = document.createElement('div');
+                card.className = 'game-card';
+                card.onclick = () => playGame(game.system, game.file);
+
+                card.innerHTML = `
+                    <div class="game-image" style="background: ${systemInfo.color}">
+                        <span>${systemInfo.icon}</span>
+                    </div>
+                    <div class="game-info">
+                        <div class="game-title">${game.name}</div>
+                        <span class="game-system">${systemInfo.name}</span>
+                        <div class="game-desc">${game.description || '经典游戏'}</div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        // 筛选游戏
+        function filterGames() {
+            // TODO: 实现筛选逻辑
+        }
+
+        // 启动游戏
+        function playGame(system, file) {
+            window.location.href = `player.html?system=${system}&rom=${encodeURIComponent(file)}`;
+        }
+
+        // 退出登录
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                localStorage.removeItem('emulatorjs_user_id');
+                localStorage.removeItem('emulatorjs_username');
+                window.location.href = 'login.html';
+            }
+        }
+
+        // 页面加载时初始化
+        window.onload = () => {
+            // 检查登录状态
+            const userId = localStorage.getItem('emulatorjs_user_id');
+            const username = localStorage.getItem('emulatorjs_username');
+
+            if (!userId || !username) {
+                // 未登录，跳转到登录页
+                window.location.href = 'login.html';
+                return;
             }
 
-            if (urlParams.get("browserMode")) {
-                browserMode = urlParams.get("browserMode");
-            }
-
-            if (urlParams.get("rom")) {
-                console.log(`Loading ROM from URL: roms/${urlParams.get("rom")}`);
-                run(false, urlParams.get("rom"));
-            }
-
-            async function run(upload, file) {
-                const url = upload ? input.files[0] : `roms/${file}`;
-                const parts = upload ? input.files[0].name.split(".") : file.split(".");
-
-                const core = await (async (ext) => {
-                    if (["fds", "nes", "unif", "unf"].includes(ext))
-                        return "nes"
-
-                    if (["smc", "fig", "sfc", "gd3", "gd7", "dx2", "bsx", "swc"].includes(ext))
-                        return "snes"
-
-                    if (["z64", "n64"].includes(ext))
-                        return "n64"
-
-                    if (["pce"].includes(ext))
-                        return "pce"
-
-                    if (["ngp", "ngc"].includes(ext))
-                        return "ngp"
-
-                    if (["ws", "wsc"].includes(ext))
-                        return "ws"
-
-                    if (["col", "cv"].includes(ext))
-                        return "coleco"
-
-                    if (["d64"].includes(ext))
-                        return "vice_x64sc"
-
-                    if (["nds", "gba", "gb", "z64", "n64"].includes(ext))
-                        return ext
-
-                    return await new Promise(resolve => {
-                        var coreValues = {
-                            "Nintendo 64": "n64",
-                            "Nintendo Game Boy": "gb",
-                            "Nintendo Game Boy Advance": "gba",
-                            "Nintendo DS": "nds",
-                            "Nintendo Entertainment System": "nes",
-                            "Super Nintendo Entertainment System": "snes",
-                            "PlayStation": "psx",
-                            "Virtual Boy": "vb",
-                            "Sega Mega Drive": "segaMD",
-                            "Sega Master System": "segaMS",
-                            "Sega CD": "segaCD",
-                            "Atari Lynx": "lynx",
-                            "Sega 32X": "sega32x",
-                            "Atari Jaguar": "jaguar",
-                            "Sega Game Gear": "segaGG",
-                            "Sega Saturn": "segaSaturn",
-                            "Atari 7800": "atari7800",
-                            "Atari 2600": "atari2600",
-                            "Arcade": "arcade",
-                            "NEC TurboGrafx-16/SuperGrafx/PC Engine": "pce",
-                            "NEC PC-FX": "pcfx",
-                            "SNK NeoGeo Pocket (Color)": "ngp",
-                            "Bandai WonderSwan (Color)": "ws",
-                            "ColecoVision": "coleco",
-                            "Commodore 64": "vice_x64sc",
-                            "Commodore 128": "vice_x128",
-                            "Commodore VIC20": "vice_xvic",
-                            "Commodore Plus/4": "vice_xplus4",
-                            "Commodore PET": "vice_xpet",
-                        }
-                        
-                        if (enableThreads) {
-                            coreValues["DOSBOX-PURE"] = "dosbox_pure";
-                            coreValues["PlayStation Portable"] = "ppsspp";
-                        }
-
-                        for (let core in coreValues) {
-                            if (core.toLowerCase() === ext) {
-                                resolve(core)
-                            }
-                        }
- 
-                        const cores = Object.keys(coreValues).sort().reduce(
-                            (obj, key) => { 
-                                obj[key] = coreValues[key]; 
-                                return obj;
-                            }, 
-                            {}
-                        );
-
-                        const button = document.createElement("button")
-                        const select = document.createElement("select")
-
-                        for (const type in cores) {
-                            const option = document.createElement("option")
-
-                            option.value = cores[type]
-                            option.textContent = type
-                            select.appendChild(option)
-                        }
-
-                        button.onclick = () => resolve(select[select.selectedIndex].value)
-                        button.textContent = "Load game"
-                        box.innerHTML = ""
-
-                        box.appendChild(select)
-                        box.appendChild(button)
-                    })
-                })(parts.pop())
-
-                const div = document.createElement("div")
-                const sub = document.createElement("div")
-                const script = document.createElement("script")
-
-                sub.id = "game"
-                div.id = "display"
-
-                const top = document.getElementById("top");
-                top.remove();
-                box.remove()
-                div.appendChild(sub)
-                document.body.appendChild(div)
-
-                window.EJS_player = "#game";
-                window.EJS_gameName = parts.shift();
-                window.EJS_biosUrl = "";
-                window.EJS_gameUrl = url;
-                window.EJS_core = core;
-                window.EJS_pathtodata = "data/";
-                window.EJS_startOnLoaded = true;
-                window.EJS_DEBUG_XX = enableDebug;
-                window.EJS_disableDatabases = true;
-                window.EJS_threads = enableThreads;
-                if (browserMode) {
-                    window.EJS_browserMode = browserMode;
-                }
-
-                script.src = "data/loader.js";
-                document.body.appendChild(script);
-            }
-            
-            input.onchange = async () => {
-                run(true);
-            }
-            
-            box.ondragover = () => box.setAttribute("drag", true);
-            box.ondragleave = () => box.removeAttribute("drag");
-        </script>
-    </body>
+            // 已登录，显示用户名并加载游戏
+            document.querySelector('.subtitle').textContent = `欢迎回来，${username}！在线游玩经典游戏，存档自动云端保存`;
+            loadGames();
+        };
+    </script>
+</body>
 </html>

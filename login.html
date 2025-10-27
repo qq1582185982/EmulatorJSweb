@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - EmulatorJS 游戏中心</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .toggle-mode {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+        }
+
+        .toggle-mode a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .toggle-mode a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .auth-container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 1.6em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <h1>🎮 游戏中心</h1>
+        <p class="subtitle">登录或注册以使用云存档</p>
+
+        <div id="message" class="message"></div>
+
+        <form id="authForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" required minlength="3" maxlength="20" placeholder="3-20个字符">
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" required minlength="6" placeholder="至少6个字符">
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">登录</button>
+            <button type="button" class="btn btn-secondary" id="toggleBtn">切换到注册</button>
+        </form>
+
+        <div class="toggle-mode">
+            <p id="toggleText">还没有账号？<a href="#" onclick="toggleMode(); return false;">立即注册</a></p>
+        </div>
+    </div>
+
+    <script>
+        let isLoginMode = true;
+
+        function showMessage(message, type) {
+            const msgEl = document.getElementById('message');
+            msgEl.textContent = message;
+            msgEl.className = `message ${type}`;
+            msgEl.style.display = 'block';
+            setTimeout(() => {
+                msgEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function toggleMode() {
+            isLoginMode = !isLoginMode;
+            const submitBtn = document.getElementById('submitBtn');
+            const toggleBtn = document.getElementById('toggleBtn');
+            const toggleText = document.getElementById('toggleText');
+
+            if (isLoginMode) {
+                submitBtn.textContent = '登录';
+                toggleBtn.textContent = '切换到注册';
+                toggleText.innerHTML = '还没有账号？<a href="#" onclick="toggleMode(); return false;">立即注册</a>';
+            } else {
+                submitBtn.textContent = '注册';
+                toggleBtn.textContent = '切换到登录';
+                toggleText.innerHTML = '已有账号？<a href="#" onclick="toggleMode(); return false;">立即登录</a>';
+            }
+        }
+
+        document.getElementById('toggleBtn').addEventListener('click', toggleMode);
+
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (username.length < 3 || username.length > 20) {
+                showMessage('用户名必须是3-20个字符', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showMessage('密码至少6个字符', 'error');
+                return;
+            }
+
+            const endpoint = isLoginMode ? '/api/login' : '/api/register';
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // 保存用户信息到localStorage
+                    localStorage.setItem('emulatorjs_user_id', data.userId);
+                    localStorage.setItem('emulatorjs_username', username);
+
+                    showMessage(isLoginMode ? '登录成功！正在跳转...' : '注册成功！正在跳转...', 'success');
+
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1000);
+                } else {
+                    showMessage(data.message || '操作失败', 'error');
+                }
+            } catch (error) {
+                console.error('请求失败:', error);
+                showMessage('网络错误，请重试', 'error');
+            }
+        });
+
+        // 检查是否已登录
+        window.onload = () => {
+            const userId = localStorage.getItem('emulatorjs_user_id');
+            const username = localStorage.getItem('emulatorjs_username');
+
+            // 只有当userId和username都存在时才认为已登录
+            if (userId && username) {
+                // 已登录，直接跳转
+                window.location.href = 'index.html';
+            }
+        };
+    </script>
+</body>
+</html>

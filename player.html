@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmulatorJS 游戏播放器</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            background-color: black;
+            color: white;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+
+        body {
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        #game {
+            width: 100%;
+            height: 100%;
+        }
+
+        #loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        #loading h2 {
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 5px solid #333;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+
+        #save-info {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 1000;
+            display: none;
+        }
+
+        #save-info.show {
+            display: block;
+        }
+
+        /* 存档槽选择弹窗 */
+        #slot-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #slot-modal.show {
+            display: flex;
+        }
+
+        .slot-container {
+            background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 90vw;
+            width: 1400px;
+            max-height: 85vh;
+            overflow-y: auto;
+            color: white;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .slot-container h2 {
+            margin-top: 0;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2em;
+            color: #667eea;
+            text-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .slot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .slot-item {
+            background: linear-gradient(145deg, #2a2a3e, #1e1e2e);
+            border: 3px solid #3a3a5a;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slot-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .slot-item:hover::before {
+            opacity: 1;
+        }
+
+        .slot-item:hover {
+            background: linear-gradient(145deg, #3a3a5a, #2a2a4a);
+            border-color: #667eea;
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .slot-item.has-save {
+            border-color: #667eea;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .slot-number {
+            font-size: 1.4em;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #667eea;
+        }
+
+        .slot-info {
+            font-size: 0.85em;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        .slot-screenshot {
+            width: 100%;
+            height: 120px;
+            background: #1a1a2e;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid #3a3a5a;
+        }
+
+        .close-x {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            transition: all 0.3s;
+            z-index: 10;
+        }
+
+        .close-x:hover {
+            background: rgba(255, 59, 59, 0.8);
+            border-color: #ff3b3b;
+            transform: rotate(90deg);
+        }
+
+        #close-modal {
+            display: block;
+            margin: 20px auto 0;
+            padding: 12px 40px;
+            background: #667eea;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        #close-modal:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .slot-container {
+                width: 95vw;
+                max-width: 95vw;
+                padding: 20px;
+                max-height: 90vh;
+            }
+
+            .slot-container h2 {
+                font-size: 1.5em;
+                margin-bottom: 20px;
+            }
+
+            .slot-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 12px;
+            }
+
+            .slot-item {
+                padding: 12px;
+            }
+
+            .slot-number {
+                font-size: 1.2em;
+                margin-bottom: 8px;
+            }
+
+            .slot-screenshot {
+                height: 90px;
+                margin-bottom: 8px;
+            }
+
+            .slot-info {
+                font-size: 0.75em;
+            }
+
+            .close-x {
+                width: 35px;
+                height: 35px;
+                top: 10px;
+                right: 10px;
+                font-size: 20px;
+            }
+
+            #close-modal {
+                padding: 10px 30px;
+                font-size: 14px;
+            }
+
+            #back-button {
+                top: 10px;
+                left: 10px;
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+
+            #save-info {
+                bottom: 10px;
+                right: 10px;
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+        }
+
+        /* 小屏手机适配 */
+        @media (max-width: 480px) {
+            .slot-container {
+                padding: 15px;
+            }
+
+            .slot-container h2 {
+                font-size: 1.3em;
+                margin-bottom: 15px;
+            }
+
+            .slot-grid {
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+                gap: 10px;
+            }
+
+            .slot-item {
+                padding: 10px;
+            }
+
+            .slot-number {
+                font-size: 1em;
+            }
+
+            .slot-screenshot {
+                height: 70px;
+            }
+
+            .slot-info {
+                font-size: 0.7em;
+            }
+
+            #close-modal {
+                padding: 8px 20px;
+                font-size: 13px;
+                margin-top: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="save-info"></div>
+
+    <!-- 存档槽选择弹窗 -->
+    <div id="slot-modal">
+        <div class="slot-container">
+            <div class="close-x" onclick="closeSlotModal()">×</div>
+            <h2 id="modal-title">选择存档位置</h2>
+            <div class="slot-grid" id="slot-grid"></div>
+            <button id="close-modal" onclick="closeSlotModal()">关闭</button>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div id="loading">
+            <div class="spinner"></div>
+            <h2>正在加载游戏...</h2>
+            <p id="load-status">初始化中</p>
+        </div>
+        <div id="game"></div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const system = urlParams.get('system');
+        const romFile = urlParams.get('rom');
+        const userId = getUserId(); // 获取用户ID用于存档
+        const MAX_SLOTS = 30; // 最多30个存档槽
+        let currentSaveData = null; // 当前要保存的数据
+        let slotMode = 'save'; // 'save' 或 'load'
+
+        if (!system || !romFile) {
+            alert('缺少游戏参数');
+            window.location.href = 'index.html';
+        }
+
+        // 获取或创建用户ID
+        function getUserId() {
+            let userId = localStorage.getItem('emulatorjs_user_id');
+            if (!userId) {
+                userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('emulatorjs_user_id', userId);
+            }
+            return userId;
+        }
+
+        // 显示保存信息
+        function showSaveInfo(message) {
+            const saveInfo = document.getElementById('save-info');
+            saveInfo.textContent = message;
+            saveInfo.classList.add('show');
+            setTimeout(() => {
+                saveInfo.classList.remove('show');
+            }, 3000);
+        }
+
+        // 保存到指定存档槽
+        async function saveToSlot(slotNumber, saveData) {
+            try {
+                const gameName = romFile.replace(/\.[^/.]+$/, '');
+                const stateBase64 = btoa(String.fromCharCode.apply(null, saveData.state));
+                const screenshotBase64 = saveData.screenshot ?
+                    btoa(String.fromCharCode.apply(null, saveData.screenshot)) : null;
+
+                const response = await fetch('/api/save-state', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userId: userId,
+                        system: system,
+                        gameName: `${gameName}_slot${slotNumber}`,
+                        state: {
+                            state: stateBase64,
+                            screenshot: screenshotBase64,
+                            format: saveData.format,
+                            timestamp: Date.now()
+                        }
+                    })
+                });
+
+                const result = await response.json();
+                return result.success;
+            } catch (error) {
+                console.error('保存失败:', error);
+                return false;
+            }
+        }
+
+        // 从指定存档槽加载
+        async function loadFromSlot(slotNumber) {
+            try {
+                const gameName = romFile.replace(/\.[^/.]+$/, '');
+                const response = await fetch(`/api/load-state?userId=${userId}&system=${system}&gameName=${encodeURIComponent(gameName + '_slot' + slotNumber)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.state && data.state.state) {
+                        const binaryString = atob(data.state.state);
+                        const stateBytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                            stateBytes[i] = binaryString.charCodeAt(i);
+                        }
+                        return { state: stateBytes, info: data.state };
+                    }
+                }
+            } catch (error) {
+                console.error('加载存档失败:', error);
+            }
+            return null;
+        }
+
+        // 获取所有存档槽信息（使用批量API）
+        async function getAllSlots() {
+            try {
+                const gameName = romFile.replace(/\.[^/.]+$/, '');
+                const response = await fetch(`/api/list-slots?userId=${userId}&system=${system}&gameName=${encodeURIComponent(gameName)}&maxSlots=${MAX_SLOTS}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        return data.slots;
+                    }
+                }
+            } catch (error) {
+                console.error('获取存档槽列表失败:', error);
+            }
+            // 返回空槽位作为后备
+            return Array.from({ length: MAX_SLOTS }, (_, i) => ({
+                number: i + 1,
+                hasSave: false,
+                info: null
+            }));
+        }
+
+        // 显示存档槽选择弹窗
+        async function showSlotModal(mode) {
+            slotMode = mode;
+            const modal = document.getElementById('slot-modal');
+            const title = document.getElementById('modal-title');
+            const grid = document.getElementById('slot-grid');
+
+            title.textContent = mode === 'save' ? '选择存档位置' : '选择要加载的存档';
+            grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center;">加载中...</div>';
+            modal.classList.add('show');
+
+            const slots = await getAllSlots();
+            grid.innerHTML = '';
+
+            slots.forEach(slot => {
+                const slotDiv = document.createElement('div');
+                slotDiv.className = 'slot-item' + (slot.hasSave ? ' has-save' : '');
+                slotDiv.onclick = () => handleSlotClick(slot.number);
+
+                let content = `<div class="slot-number">存档 ${slot.number}</div>`;
+
+                if (slot.hasSave && slot.info) {
+                    if (slot.info.screenshot) {
+                        content += `<img class="slot-screenshot" src="data:image/${slot.info.format || 'png'};base64,${slot.info.screenshot}" alt="截图">`;
+                    }
+                    if (slot.info.timestamp) {
+                        const date = new Date(slot.info.timestamp);
+                        content += `<div class="slot-info">${date.toLocaleString('zh-CN')}</div>`;
+                    }
+                } else {
+                    content += `<div class="slot-screenshot"></div>`;
+                    content += `<div class="slot-info">空存档</div>`;
+                }
+
+                slotDiv.innerHTML = content;
+                grid.appendChild(slotDiv);
+            });
+        }
+
+        // 处理存档槽点击
+        async function handleSlotClick(slotNumber) {
+            if (slotMode === 'save') {
+                if (currentSaveData) {
+                    const success = await saveToSlot(slotNumber, currentSaveData);
+                    if (success) {
+                        showSaveInfo(`✓ 已保存到存档 ${slotNumber}`);
+                        closeSlotModal();
+                    } else {
+                        showSaveInfo('✗ 保存失败');
+                    }
+                }
+            } else {
+                const data = await loadFromSlot(slotNumber);
+                if (data && window.EJS_emulator && window.EJS_emulator.gameManager) {
+                    await window.EJS_emulator.gameManager.loadState(data.state);
+                    showSaveInfo(`✓ 已加载存档 ${slotNumber}`);
+                    closeSlotModal();
+                } else {
+                    showSaveInfo('✗ 该位置没有存档');
+                }
+            }
+        }
+
+        // 关闭弹窗
+        function closeSlotModal() {
+            document.getElementById('slot-modal').classList.remove('show');
+            currentSaveData = null;
+        }
+
+        // ESC键关闭弹窗
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                const modal = document.getElementById('slot-modal');
+                if (modal.classList.contains('show')) {
+                    closeSlotModal();
+                }
+            }
+        });
+
+        // 点击背景关闭弹窗
+        document.getElementById('slot-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'slot-modal') {
+                closeSlotModal();
+            }
+        });
+
+
+        // 加载游戏
+        async function loadGame() {
+            document.getElementById('load-status').textContent = '正在加载ROM文件...';
+
+            window.EJS_player = '#game';
+            window.EJS_gameUrl = `/roms/${system}/${romFile}`;
+            window.EJS_core = system;
+            window.EJS_pathtodata = 'data/';
+            window.EJS_language = 'zh-CN'; // 中文界面
+            window.EJS_startOnLoaded = true;
+
+            // 禁用本地存档UI，使用服务器存档
+            window.EJS_disableDatabases = true; // 禁用IndexedDB本地存储
+            window.EJS_gameName = romFile.replace(/\.[^/.]+$/, ''); // 设置游戏名称
+
+            // RetroArch配置 - 中文界面和服务器存档
+            window.EJS_defaultOptions = {
+                'user_language': 18,  // 18 = Chinese Simplified (简体中文)
+                'menu_show_load_state': true,
+                'menu_show_save_state': true
+            };
+
+            // 监听存档事件 - 打开存档槽选择
+            window.EJS_onSaveState = async function(saveData) {
+                console.log('保存触发，显示存档槽选择');
+                currentSaveData = saveData;
+                await showSlotModal('save');
+                return null; // 阻止默认行为
+            };
+
+            // 拦截加载状态功能 - 打开存档槽选择
+            window.EJS_onLoadState = async function() {
+                console.log('加载触发，显示存档槽选择');
+                await showSlotModal('load');
+                return null; // 阻止默认行为
+            };
+
+            // 加载EmulatorJS
+            const script = document.createElement('script');
+            script.src = 'data/loader.js';
+            script.onload = () => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('game').style.display = 'block';
+
+                // EmulatorJS加载完成后，进一步拦截UI事件
+                setTimeout(() => {
+                    if (window.EJS_emulator) {
+                        // 覆盖默认的加载状态方法 - 使用存档槽
+                        window.EJS_emulator.loadState = async function() {
+                            console.log('拦截loadState调用，显示存档槽选择');
+                            await showSlotModal('load');
+                        };
+
+                        // 监听DOM变化，检测"EmulatorJS has exited"弹窗
+                        const observer = new MutationObserver((mutations) => {
+                            mutations.forEach((mutation) => {
+                                mutation.addedNodes.forEach((node) => {
+                                    if (node.textContent && node.textContent.includes('EmulatorJS has exited')) {
+                                        console.log('检测到退出弹窗，立即返回游戏列表');
+                                        window.location.href = 'index.html';
+                                    }
+                                });
+                            });
+                        });
+
+                        observer.observe(document.body, {
+                            childList: true,
+                            subtree: true
+                        });
+                    }
+
+                    // 强制翻译菜单项（修复emulator.min.js硬编码的英文字符串）
+                    const translations = {
+                        'Graphics Settings': '图形设置',
+                        'Screen Capture': '屏幕截图',
+                        'Speed Options': '速度选项',
+                        'Input Options': '输入选项',
+                        'Save States': '保存状态',
+                        'Backend Core Options': '后端核心选项',
+                        'Core (Requires restart)': '核心（需要重启）',
+                        // FCE核心选项
+                        'fceumm region': 'FCE区域',
+                        'fceumm game genie': 'FCE金手指',
+                        'fceumm show adv system options': 'FCE显示高级系统选项',
+                        'fceumm show adv sound options': 'FCE显示高级音频选项',
+                        'fceumm aspect': 'FCE宽高比',
+                        'fceumm overscan h left': 'FCE水平过扫描（左）',
+                        'fceumm overscan h right': 'FCE水平过扫描（右）',
+                        'fceumm overscan v top': 'FCE垂直过扫描（上）',
+                        'fceumm overscan v bottom': 'FCE垂直过扫描（下）',
+                        'fceumm palette': 'FCE调色板',
+                        'fceumm ntsc filter': 'FCE NTSC滤镜',
+                        'fceumm sndquality': 'FCE音质',
+                        'fceumm sndlowpass': 'FCE音频低通',
+                        'fceumm sndstereodelay': 'FCE立体声延迟',
+                        'fceumm swapduty': 'FCE占空比交换',
+                        'fceumm sndvolume': 'FCE音量',
+                        'fceumm apu 1': 'FCE APU 1（方波1）',
+                        'fceumm apu 2': 'FCE APU 2（方波2）',
+                        'fceumm apu 3': 'FCE APU 3（三角波）',
+                        'fceumm apu 4': 'FCE APU 4（噪音）',
+                        'fceumm apu 5': 'FCE APU 5（DPCM）',
+                        'fceumm turbo enable': 'FCE启用连发',
+                        'fceumm turbo delay': 'FCE连发延迟',
+                        'fceumm zapper mode': 'FCE光枪模式',
+                        'fceumm show crosshair': 'FCE显示准星',
+                        'fceumm zapper tolerance': 'FCE光枪容差',
+                        'fceumm zapper trigger': 'FCE光枪触发',
+                        'fceumm zapper sensor': 'FCE光枪传感器',
+                        'fceumm arkanoid mode': 'FCE打砖块模式',
+                        'fceumm mouse sensitivity': 'FCE鼠标灵敏度',
+                        'fceumm up down allowed': 'FCE允许同时按上下',
+                        'fceumm nospritelimit': 'FCE无精灵限制',
+                        'fceumm overclocking': 'FCE超频',
+                        'fceumm ramstate': 'FCE RAM初始状态',
+                        // 核心名称
+                        'fceumm': 'FCEUmm',
+                        'nestopia': 'Nestopia',
+                        // 通用选项值
+                        'Auto': '自动',
+                        'auto': '自动',
+                        'disabled': '禁用',
+                        'enabled': '启用',
+                        'Disabled': '禁用',
+                        'Enabled': '启用',
+                        'default': '默认',
+                        'composite': '复合视频',
+                        'svideo': 'S-Video',
+                        'rgb': 'RGB',
+                        'monochrome': '单色',
+                        'low': '低',
+                        'high': '高',
+                        'very high': '极高',
+                        'lightgun': '光枪',
+                        'clightgun': 'C光枪',
+                        'mouse': '鼠标',
+                        'fill $ff': '填充$ff',
+                        'fill $00': '填充$00',
+                        'random': '随机',
+                        'canvas': '画布',
+                        'webgl': 'WebGL',
+                        'png': 'PNG',
+                        'jpg': 'JPG',
+                        'jpeg': 'JPEG',
+                        'mp4': 'MP4',
+                        'webm': 'WebM',
+                        'gif': 'GIF',
+                        '0 deg': '0度',
+                        '90 deg': '90度',
+                        '180 deg': '180度',
+                        '270 deg': '270度',
+                        '1x': '1倍',
+                        '2x': '2倍',
+                        '3x': '3倍',
+                        '4x': '4倍',
+                        'ON': '开',
+                        'OFF': '关',
+                        'on': '开',
+                        'off': '关'
+                    };
+
+                    function translateMenuItems() {
+                        // 查找所有文本节点并替换
+                        const walker = document.createTreeWalker(
+                            document.body,
+                            NodeFilter.SHOW_TEXT,
+                            null,
+                            false
+                        );
+
+                        let node;
+                        while (node = walker.nextNode()) {
+                            const text = node.textContent.trim();
+                            if (translations[text]) {
+                                node.textContent = node.textContent.replace(text, translations[text]);
+                            }
+                        }
+                    }
+
+                    // 首次翻译
+                    translateMenuItems();
+
+                    // 监听DOM变化，自动翻译新添加的菜单项
+                    const translationObserver = new MutationObserver(() => {
+                        translateMenuItems();
+                    });
+
+                    translationObserver.observe(document.body, {
+                        childList: true,
+                        subtree: true,
+                        characterData: true
+                    });
+                }, 2000);
+            };
+            document.body.appendChild(script);
+        }
+
+
+        // 页面加载时启动
+        window.onload = loadGame;
+    </script>
+</body>
+</html>
