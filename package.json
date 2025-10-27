@@ -1,39 +1,57 @@
 {
-    "name": "@emulatorjs/emulatorjs",
-    "version": "4.2.3",
-    "type": "module",
-    "description": "EmulatorJS is a frontend for RetroArch in the web browser.",
-    "homepage": "https://emulatorjs.org",
-    "license": "GPL-3.0",
-    "sideEffects": true,
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/EmulatorJS/EmulatorJS.git"
+  "name": "emulatorjs-desktop",
+  "version": "1.0.0",
+  "description": "EmulatorJS 桌面版 - 经典游戏模拟器",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build-win": "electron-builder --win --x64",
+    "build-all": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "com.emulatorjs.desktop",
+    "productName": "EmulatorJS游戏中心",
+    "directories": {
+      "output": "dist"
     },
-    "bugs": {
-        "url": "https://github.com/EmulatorJS/EmulatorJS/issues"
+    "files": [
+      "**/*",
+      "!node_modules",
+      "!dist",
+      "!*.bat",
+      "!*.sh",
+      "!*.md",
+      "!api",
+      "!index.html",
+      "!player.html"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "icon.ico"
     },
-    "scripts": {
-        "start": "http-server",
-        "minify": "node minify/minify.js",
-        "build": "node build.js",
-        "update": "node update.js",
-        "docs": "jsdoc data/src/*.js -d jsdoc"
-    },
-    "dependencies": {
-        "@node-minify/clean-css": "^9.0.1",
-        "@node-minify/core": "^9.0.2",
-        "@node-minify/terser": "^9.0.1",
-        "http-server": "^14.1.1",
-        "node-7z": "^3.0.0"
-    },
-    "optionalDependencies": {
-        "@emulatorjs/cores": "latest"
-    },
-    "devDependencies": {
-        "jsdoc": "^4.0.4",
-        "nipplejs": "^0.10.2",
-        "node-fetch": "^3.3.2",
-        "socket.io": "^4.8.1"
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "EmulatorJS游戏中心"
     }
+  },
+  "author": "EmulatorJS",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {}
 }
