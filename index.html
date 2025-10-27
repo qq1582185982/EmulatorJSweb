@@ -433,7 +433,17 @@
 
         // 筛选游戏
         function filterGames() {
-            // TODO: 实现筛选逻辑
+            const selectedSystem = document.getElementById('systemFilter').value;
+            const allGames = window.allGamesList || [];
+
+            if (selectedSystem === 'all') {
+                // 显示所有游戏
+                renderGames(allGames);
+            } else {
+                // 根据游戏机筛选
+                const filteredGames = allGames.filter(game => game.system === selectedSystem);
+                renderGames(filteredGames);
+            }
         }
 
         // 启动游戏
