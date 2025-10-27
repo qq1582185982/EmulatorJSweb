@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmulatorJS 游戏播放器</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            background-color: black;
+            color: white;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #game {
+            width: 100%;
+            height: 100%;
+        }
+
+        #back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(102, 126, 234, 0.9);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 1000;
+            transition: background 0.3s;
+        }
+
+        #back-button:hover {
+            background: rgba(102, 126, 234, 1);
+        }
+    </style>
+</head>
+<body>
+    <button id="back-button" onclick="goBack()">← 返回游戏列表</button>
+
+    <div id="game-container">
+        <div id="game"></div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const system = urlParams.get('system');
+        const romFile = urlParams.get('rom');
+
+        if (!system || !romFile) {
+            alert('缺少游戏参数');
+            window.location.href = 'index-static.html';
+        }
+
+        function goBack() {
+            if (confirm('确定要退出游戏吗？未保存的进度可能会丢失。')) {
+                window.location.href = 'index-static.html';
+            }
+        }
+
+        // 配置EmulatorJS
+        window.EJS_player = '#game';
+        window.EJS_gameUrl = `roms/${system}/${romFile}`;
+        window.EJS_core = system;
+        window.EJS_pathtodata = 'data/';
+        window.EJS_language = 'zh-CN';
+        window.EJS_startOnLoaded = true;
+
+        // 加载EmulatorJS
+        const script = document.createElement('script');
+        script.src = 'data/loader.js';
+        document.body.appendChild(script);
+    </script>
+</body>
+</html>

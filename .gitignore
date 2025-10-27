@@ -1,16 +1,72 @@
+# 依赖
 node_modules/
 package-lock.json
 yarn.lock
+
+# ROM 文件（用户数据，不提交）
 roms/
+*.nes
+*.sfc
+*.smc
+*.gba
+*.gb
+*.gbc
+*.nds
+*.n64
+*.z64
+*.v64
+*.md
+*.bin
+*.gen
+*.sms
+*.gg
+*.iso
+*.cue
+*.cso
+
+# 用户数据（不提交）
+saves/
+users.json
+
+# EmulatorJS 编译文件（会自动生成）
 data/emulator.min.js
 data/emulator.min.css
+data/emulator.min.zip
 data/cores/*
 !data/cores/README.md
 !data/cores/core-README.md
 !data/cores/package.json
 !data/cores/.npmignore
+
+# 压缩库文件（会从CDN加载）
+data/extract7z.js
+data/extractzip.js
+data/libunrar.js
+data/libunrar.wasm
+
+# 系统文件
 .DS_Store
-.vscode/*
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 构建产物
 *.tgz
 dist/
 jsdoc/
+
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 临时文件
+*.tmp
+.cache/

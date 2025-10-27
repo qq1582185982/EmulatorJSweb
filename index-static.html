@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmulatorJS 游戏中心</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .filter-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .filter-bar select {
+            padding: 10px 15px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 25px;
+        }
+
+        .game-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
+        .game-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
+
+        .game-image {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+        }
+
+        .game-info {
+            padding: 20px;
+        }
+
+        .game-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .game-system {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-bottom: 10px;
+        }
+
+        .game-desc {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 EmulatorJS 游戏中心</h1>
+            <p class="subtitle">纯静态版本 - 存档保存在浏览器本地</p>
+        </header>
+
+        <div class="filter-bar">
+            <label>筛选游戏机：</label>
+            <select id="systemFilter" onchange="filterGames()">
+                <option value="all">全部游戏机</option>
+                <option value="nes">任天堂 NES</option>
+                <option value="snes">超级任天堂 SNES</option>
+                <option value="gba">Game Boy Advance</option>
+                <option value="gb">Game Boy</option>
+                <option value="n64">任天堂 64</option>
+                <option value="nds">任天堂 DS</option>
+                <option value="psx">PlayStation</option>
+                <option value="segaMD">世嘉MD</option>
+            </select>
+        </div>
+
+        <div class="games-grid" id="gamesGrid"></div>
+    </div>
+
+    <script>
+        // 游戏配置 - 手动配置你的ROM列表
+        const gamesList = [
+            {
+                system: 'nes',
+                systemName: '任天堂 NES',
+                icon: '🎮',
+                color: '#E60012',
+                games: [
+                    { name: 'Metal Max', file: 'Metal Max series.nes', desc: '经典RPG游戏' },
+                    // 在这里添加更多NES游戏
+                ]
+            },
+            {
+                system: 'snes',
+                systemName: '超级任天堂',
+                icon: '🎯',
+                color: '#8F8F8F',
+                games: [
+                    // { name: '游戏名', file: '文件名.sfc', desc: '描述' },
+                ]
+            },
+            {
+                system: 'gba',
+                systemName: 'Game Boy Advance',
+                icon: '🎰',
+                color: '#5E2CA5',
+                games: []
+            }
+        ];
+
+        // 渲染游戏列表
+        function renderGames() {
+            const grid = document.getElementById('gamesGrid');
+            grid.innerHTML = '';
+
+            gamesList.forEach(systemData => {
+                systemData.games.forEach(game => {
+                    const card = document.createElement('div');
+                    card.className = 'game-card';
+                    card.onclick = () => playGame(systemData.system, game.file);
+
+                    card.innerHTML = `
+                        <div class="game-image" style="background: ${systemData.color}">
+                            <span>${systemData.icon}</span>
+                        </div>
+                        <div class="game-info">
+                            <div class="game-title">${game.name}</div>
+                            <span class="game-system">${systemData.systemName}</span>
+                            <div class="game-desc">${game.desc}</div>
+                        </div>
+                    `;
+
+                    grid.appendChild(card);
+                });
+            });
+        }
+
+        // 启动游戏
+        function playGame(system, file) {
+            window.location.href = `player-static.html?system=${system}&rom=${encodeURIComponent(file)}`;
+        }
+
+        // 筛选游戏
+        function filterGames() {
+            const filter = document.getElementById('systemFilter').value;
+            // TODO: 实现筛选
+            renderGames();
+        }
+
+        // 初始化
+        window.onload = renderGames;
+    </script>
+</body>
+</html>
