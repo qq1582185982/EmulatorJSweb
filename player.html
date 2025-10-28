@@ -389,12 +389,27 @@
         }
 
         // 保存到指定存档槽
+        // 辅助函数：将 Uint8Array 转换为 Base64（支持大数组）
+        function uint8ArrayToBase64(bytes) {
+            const CHUNK_SIZE = 0x8000; // 32KB chunks
+            let binary = '';
+            for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+                const chunk = bytes.subarray(i, Math.min(i + CHUNK_SIZE, bytes.length));
+                binary += String.fromCharCode.apply(null, chunk);
+            }
+            return btoa(binary);
+        }
+
         async function saveToSlot(slotNumber, saveData) {
             try {
                 const gameName = romFile.replace(/\.[^/.]+$/, '');
-                const stateBase64 = btoa(String.fromCharCode.apply(null, saveData.state));
+
+                console.log('开始转换存档数据...');
+                const stateBase64 = uint8ArrayToBase64(saveData.state);
                 const screenshotBase64 = saveData.screenshot ?
-                    btoa(String.fromCharCode.apply(null, saveData.screenshot)) : null;
+                    uint8ArrayToBase64(saveData.screenshot) : null;
+
+                console.log('存档大小:', (stateBase64.length / 1024 / 1024).toFixed(2), 'MB');
 
                 const response = await fetch('/api/save-state', {
                     method: 'POST',
@@ -418,6 +433,7 @@
                 return result.success;
             } catch (error) {
                 console.error('保存失败:', error);
+                alert('保存失败: ' + error.message);
                 return false;
             }
         }
@@ -561,11 +577,40 @@
             window.EJS_gameUrl = `/roms/${system}/${romFile}`;
             window.EJS_core = system;
             window.EJS_pathtodata = 'data/';
+            window.EJS_biosUrl = '';  // 空字符串，EmulatorJS会自动在data/目录查找BIOS
             window.EJS_language = 'zh-CN'; // 中文界面
             window.EJS_startOnLoaded = true;
 
-            // 禁用本地存档UI，使用服务器存档
-            window.EJS_disableDatabases = true; // 禁用IndexedDB本地存储
+            // 系统特定配置
+            if (system === 'segaSaturn') {
+                // Saturn 需要禁用 threads 并使用 legacy 核心
+                window.EJS_threads = false;  // Saturn: 禁用线程
+                window.EJS_forceLegacyCores = true;  // Saturn: 强制使用 legacy 核心
+                console.log('=== Saturn 配置 ===');
+                console.log('EJS_threads:', window.EJS_threads);
+                console.log('EJS_forceLegacyCores:', window.EJS_forceLegacyCores);
+            } else if (system === 'psp') {
+                // PSP 必须启用线程支持
+                window.EJS_threads = true;  // PSP: 必需！
+                console.log('=== PSP 配置 ===');
+                console.log('EJS_threads:', window.EJS_threads);
+
+                // 检测 Safari 浏览器并警告
+                const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                if (isSafari) {
+                    console.warn('⚠️ PSP 核心不支持 Safari 浏览器！请使用 Chrome、Firefox 或 Edge。');
+                    alert('警告：PSP 模拟器不支持 Safari 浏览器！\n\n请使用以下浏览器之一：\n• Google Chrome\n• Mozilla Firefox\n• Microsoft Edge');
+                }
+            } else {
+                // 其他需要线程支持的模拟器（N64、NDS 等）
+                window.EJS_threads = true;  // 启用多线程支持
+            }
+
+            // 音频设置
+            window.EJS_volume = 0.5;  // 默认音量 50%
+            window.EJS_mute = false;
+
+            // 游戏名称
             window.EJS_gameName = romFile.replace(/\.[^/.]+$/, ''); // 设置游戏名称
 
             // 配置存档路径 - 加上用户ID和系统参数,实现用户隔离
@@ -575,21 +620,47 @@
             window.EJS_defaultOptions = {
                 'user_language': 18,  // 18 = Chinese Simplified (简体中文)
                 'menu_show_load_state': true,
-                'menu_show_save_state': true
+                'menu_show_save_state': true,
+                'yabause_force_hle_bios': 'enabled'  // Saturn: 强制启用HLE BIOS，无需真实BIOS文件
             };
 
             // 监听存档事件 - 打开存档槽选择
             window.EJS_onSaveState = async function(saveData) {
-                console.log('保存触发，显示存档槽选择');
+                console.log('=== 保存事件触发 ===');
+                console.log('系统:', system);
+                console.log('saveData:', saveData);
+                console.log('saveData.state 长度:', saveData?.state?.length);
+
+                if (!saveData || !saveData.state) {
+                    console.error('警告：saveData 或 saveData.state 为空');
+                    alert('保存数据无效，可能该游戏核心不支持即时存档。\n请使用游戏内存档功能。');
+                    return null;
+                }
+
                 currentSaveData = saveData;
-                await showSlotModal('save');
+
+                try {
+                    await showSlotModal('save');
+                } catch (error) {
+                    console.error('显示存档槽失败:', error);
+                    alert('显示存档槽失败: ' + error.message);
+                }
+
                 return null; // 阻止默认行为
             };
 
             // 拦截加载状态功能 - 打开存档槽选择
             window.EJS_onLoadState = async function() {
-                console.log('加载触发，显示存档槽选择');
-                await showSlotModal('load');
+                console.log('=== 加载事件触发 ===');
+                console.log('系统:', system);
+
+                try {
+                    await showSlotModal('load');
+                } catch (error) {
+                    console.error('显示加载槽失败:', error);
+                    alert('显示加载槽失败: ' + error.message);
+                }
+
                 return null; // 阻止默认行为
             };
 

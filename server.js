@@ -24,9 +24,27 @@ const mimeTypes = {
     '.eot': 'application/vnd.ms-fontobject',
     '.otf': 'application/font-otf',
     '.wasm': 'application/wasm',
+    // ROM 文件类型
     '.nes': 'application/octet-stream',
     '.sfc': 'application/octet-stream',
+    '.smc': 'application/octet-stream',
     '.gba': 'application/octet-stream',
+    '.gb': 'application/octet-stream',
+    '.gbc': 'application/octet-stream',
+    '.n64': 'application/octet-stream',
+    '.z64': 'application/octet-stream',
+    '.v64': 'application/octet-stream',
+    '.nds': 'application/octet-stream',
+    '.iso': 'application/octet-stream',
+    '.cso': 'application/octet-stream',
+    '.bin': 'application/octet-stream',
+    '.cue': 'text/plain',
+    '.mdf': 'application/octet-stream',
+    '.mds': 'text/plain',
+    '.md': 'application/octet-stream',
+    '.gen': 'application/octet-stream',
+    '.sms': 'application/octet-stream',
+    '.gg': 'application/octet-stream',
     '.zip': 'application/zip'
 };
 
@@ -155,10 +173,31 @@ const server = http.createServer((req, res) => {
         filePath = './index.html';
     }
 
+    // 检查是否是目录请求
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+        res.writeHead(403, { 'Content-Type': 'text/html' });
+        res.end('<h1>403 - 禁止访问目录</h1>', 'utf-8');
+        return;
+    }
+
     const extname = String(path.extname(filePath)).toLowerCase();
     const contentType = mimeTypes[extname] || 'application/octet-stream';
 
-    fs.readFile(filePath, (error, content) => {
+    // CORS headers for EmulatorJS
+    const headers = {
+        'Content-Type': contentType,
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cache-Control': 'public, max-age=0'
+    };
+
+    // 对于 ROM 文件，强制内联显示而不是下载
+    if (contentType === 'application/octet-stream' && !pathname.includes('/data/')) {
+        headers['Content-Disposition'] = 'inline';
+    }
+
+    // 检查文件是否存在并获取大小
+    fs.stat(filePath, (error, stat) => {
         if (error) {
             if (error.code == 'ENOENT') {
                 res.writeHead(404, { 'Content-Type': 'text/html' });
@@ -167,14 +206,44 @@ const server = http.createServer((req, res) => {
                 res.writeHead(500);
                 res.end('服务器错误: ' + error.code, 'utf-8');
             }
-        } else {
-            // CORS headers for EmulatorJS
-            res.writeHead(200, {
-                'Content-Type': contentType,
-                'Cross-Origin-Opener-Policy': 'same-origin',
-                'Cross-Origin-Embedder-Policy': 'require-corp'
+            return;
+        }
+
+        const fileSize = stat.size;
+
+        // 如果文件大于 10MB，使用流式传输
+        if (fileSize > 10 * 1024 * 1024) {
+            headers['Content-Length'] = fileSize;
+            res.writeHead(200, headers);
+
+            const readStream = fs.createReadStream(filePath);
+            readStream.pipe(res);
+
+            readStream.on('error', (err) => {
+                console.error('流式传输错误:', err);
+                if (!res.headersSent) {
+                    res.writeHead(500);
+                    res.end('流式传输错误');
+                } else {
+                    res.destroy();
+                }
             });
-            res.end(content, 'utf-8');
+        } else {
+            // 对于小文件，读入内存后发送
+            fs.readFile(filePath, (error, content) => {
+                if (error) {
+                    res.writeHead(500);
+                    res.end('读取文件错误: ' + error.code, 'utf-8');
+                } else {
+                    res.writeHead(200, headers);
+
+                    if (contentType === 'application/octet-stream' || contentType === 'application/zip') {
+                        res.end(content);
+                    } else {
+                        res.end(content, 'utf-8');
+                    }
+                }
+            });
         }
     });
 });
@@ -241,7 +310,7 @@ function listGames(req, res) {
         'segaGG': { name: '世嘉Game Gear', icon: '🎮', color: '#4B0082', extensions: ['.gg', '.zip'] },
         'segaCD': { name: '世嘉CD', icon: '🎮', color: '#0089CF', extensions: ['.bin', '.cue', '.iso', '.zip'] },
         'sega32x': { name: '世嘉32X', icon: '🎮', color: '#1E90FF', extensions: ['.32x', '.bin', '.zip'] },
-        'segaSaturn': { name: '世嘉Saturn', icon: '🎮', color: '#4169E1', extensions: ['.bin', '.cue', '.iso', '.zip'] },
+        'segaSaturn': { name: '世嘉Saturn', icon: '🎮', color: '#4169E1', extensions: ['.bin', '.cue', '.iso', '.mdf', '.mds', '.zip'] },
 
         // Sony
         'psx': { name: 'PlayStation', icon: '🎮', color: '#003791', extensions: ['.iso', '.bin', '.cue', '.zip'] },
@@ -276,15 +345,43 @@ function listGames(req, res) {
 
         const games = [];
         const files = fs.readdirSync(systemPath);
+        const processedGames = new Set(); // 跟踪已处理的游戏
 
         files.forEach(file => {
             const ext = path.extname(file).toLowerCase();
+            const baseName = path.basename(file, ext);
+
+            // 跳过索引文件（.cue, .mds），只使用主文件
+            if (['.cue', '.mds'].includes(ext)) {
+                return;
+            }
+
             if (systemInfo.extensions.includes(ext)) {
+                // 避免重复添加（如果已经通过配对文件添加过）
+                if (processedGames.has(baseName)) {
+                    return;
+                }
+
+                // 检查是否有配对的索引文件
+                let mainFile = file;
+                const cueFile = `${baseName}.cue`;
+                const mdsFile = `${baseName}.mds`;
+
+                if (ext === '.bin' && files.includes(cueFile)) {
+                    // BIN+CUE 组合，使用 CUE 文件
+                    mainFile = cueFile;
+                } else if (ext === '.mdf' && files.includes(mdsFile)) {
+                    // MDF+MDS 组合，使用 MDF 文件（MDS只是索引）
+                    mainFile = file;  // 保持使用 .mdf 文件
+                }
+
                 games.push({
-                    name: path.basename(file, ext),
-                    file: file,
+                    name: baseName,
+                    file: mainFile,
                     desc: ''
                 });
+
+                processedGames.add(baseName);
             }
         });
 

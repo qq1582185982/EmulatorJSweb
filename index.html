@@ -65,6 +65,25 @@
             cursor: pointer;
         }
 
+        #search-input {
+            padding: 10px 15px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 250px;
+            transition: all 0.3s;
+        }
+
+        #search-input:focus {
+            outline: none;
+            border-color: #5568d3;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        #search-input::placeholder {
+            color: #999;
+        }
+
         #logout-btn {
             padding: 10px 20px;
             background: #667eea;
@@ -121,6 +140,10 @@
             font-weight: bold;
             color: #333;
             margin-bottom: 10px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.4;
         }
 
         .game-system {
@@ -144,6 +167,135 @@
             color: white;
             font-size: 1.5em;
             margin-top: 50px;
+        }
+
+        /* HACK说明按钮 */
+        #hack-info-btn {
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            white-space: nowrap;
+            margin-left: 10px;
+        }
+
+        #hack-info-btn:hover {
+            background: #218838;
+        }
+
+        /* HACK说明弹窗 */
+        .hack-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .hack-modal.show {
+            display: flex;
+        }
+
+        .hack-modal-content {
+            background: white;
+            border-radius: 15px;
+            max-width: 800px;
+            max-height: 80vh;
+            width: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .hack-modal-header {
+            padding: 20px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hack-modal-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .hack-modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 2em;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .hack-modal-close:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+
+        .hack-modal-body {
+            padding: 25px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .hack-modal-body h3 {
+            color: #667eea;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .hack-modal-body p {
+            line-height: 1.6;
+            color: #555;
+            margin: 10px 0;
+        }
+
+        .hack-modal-body ul {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+
+        .hack-modal-body li {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+
+        .hack-modal-body pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 4px solid #667eea;
+        }
+
+        .no-hack-info {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            font-size: 1.1em;
         }
 
         /* 移动端适配 */
@@ -190,11 +342,39 @@
                 width: 100%;
             }
 
-            #logout-btn {
+            #search-input {
+                width: 100%;
+                padding: 10px 12px;
+                font-size: 14px;
+            }
+
+            #logout-btn, #hack-info-btn {
                 padding: 10px 16px;
                 font-size: 14px;
                 width: 100%;
                 margin-top: 0;
+                margin-left: 0;
+            }
+
+            #hack-info-btn {
+                margin-top: 10px;
+            }
+
+            .hack-modal-content {
+                max-width: 95vw;
+                max-height: 90vh;
+            }
+
+            .hack-modal-header {
+                padding: 15px 20px;
+            }
+
+            .hack-modal-title {
+                font-size: 1.2em;
+            }
+
+            .hack-modal-body {
+                padding: 20px;
             }
 
             .games-grid {
@@ -268,6 +448,7 @@
 
         <div class="filter-bar">
             <div class="left">
+                <input type="text" id="search-input" placeholder="🔍 搜索游戏名称..." oninput="filterGames()">
                 <label>筛选游戏机：</label>
                 <select id="systemFilter" onchange="filterGames()">
                     <option value="all">全部游戏机</option>
@@ -313,7 +494,23 @@
                     </optgroup>
                 </select>
             </div>
-            <button id="logout-btn" onclick="logout()">退出登录</button>
+            <div style="display: flex; gap: 10px;">
+                <button id="hack-info-btn" onclick="showHackInfo()">📝 HACK说明</button>
+                <button id="logout-btn" onclick="logout()">退出登录</button>
+            </div>
+        </div>
+
+        <!-- HACK说明弹窗 -->
+        <div class="hack-modal" id="hackModal" onclick="closeHackModal(event)">
+            <div class="hack-modal-content" onclick="event.stopPropagation()">
+                <div class="hack-modal-header">
+                    <h2 class="hack-modal-title" id="hackModalTitle">游戏HACK说明</h2>
+                    <button class="hack-modal-close" onclick="closeHackModal()">×</button>
+                </div>
+                <div class="hack-modal-body" id="hackModalBody">
+                    <div class="no-hack-info">正在加载...</div>
+                </div>
+            </div>
         </div>
 
         <div class="games-grid" id="gamesGrid">
@@ -365,6 +562,122 @@
                 games: []
             }
         };
+
+        // 智能文本解码函数 - 自动检测编码
+        function autoDecodeText(uint8Array) {
+            // 1. 检查 UTF-8 BOM (EF BB BF)
+            if (uint8Array.length >= 3 &&
+                uint8Array[0] === 0xEF &&
+                uint8Array[1] === 0xBB &&
+                uint8Array[2] === 0xBF) {
+                // UTF-8 with BOM
+                const decoder = new TextDecoder('utf-8');
+                return decoder.decode(uint8Array.slice(3));
+            }
+
+            // 2. 尝试 UTF-8 解码（严格模式）
+            try {
+                const decoder = new TextDecoder('utf-8', { fatal: true });
+                const text = decoder.decode(uint8Array);
+                // 验证解码成功且没有替换字符
+                if (text && !text.includes('�')) {
+                    return text;
+                }
+            } catch (e) {
+                // UTF-8 解码失败，继续尝试其他编码
+            }
+
+            // 3. 尝试 GBK 编码（中文常用）
+            try {
+                const decoder = new TextDecoder('gbk');
+                const text = decoder.decode(uint8Array);
+                // GBK解码成功
+                return text;
+            } catch (e) {
+                // GBK 也失败了
+            }
+
+            // 4. 尝试 GB2312 编码
+            try {
+                const decoder = new TextDecoder('gb2312');
+                return decoder.decode(uint8Array);
+            } catch (e) {
+                // GB2312 也失败了
+            }
+
+            // 5. 最后的备选方案：强制 UTF-8（可能有替换字符）
+            const decoder = new TextDecoder('utf-8');
+            return decoder.decode(uint8Array);
+        }
+
+        // 显示HACK说明弹窗
+        async function showHackInfo() {
+            const selectedSystem = document.getElementById('systemFilter').value;
+            const modal = document.getElementById('hackModal');
+            const title = document.getElementById('hackModalTitle');
+            const body = document.getElementById('hackModalBody');
+
+            // 显示弹窗
+            modal.classList.add('show');
+
+            // 加载对应游戏机的HACK文件
+            if (selectedSystem === 'all') {
+                title.textContent = '全部游戏机 HACK 说明';
+                body.innerHTML = '<div class="no-hack-info">请先选择具体的游戏机查看HACK说明</div>';
+            } else {
+                const systemName = gamesConfig[selectedSystem]?.name || selectedSystem.toUpperCase();
+                title.textContent = `${systemName} - HACK 说明`;
+                body.innerHTML = '<div class="no-hack-info">正在加载...</div>';
+
+                try {
+                    // 从服务器读取 HACK.txt 文件
+                    const response = await fetch(`/roms/${selectedSystem}/HACK.txt`);
+
+                    if (response.ok) {
+                        // 读取为 ArrayBuffer 以便自动检测编码
+                        const buffer = await response.arrayBuffer();
+                        const uint8Array = new Uint8Array(buffer);
+
+                        // 智能解码函数
+                        let content = autoDecodeText(uint8Array);
+
+                        // 将纯文本转换为HTML格式（保留换行）
+                        const htmlContent = content
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/\n/g, '<br>')
+                            .replace(/## (.+?)<br>/g, '<h3>$1</h3>')  // 支持markdown标题
+                            .replace(/### (.+?)<br>/g, '<h4 style="color: #764ba2; margin-top: 15px;">$1</h4>')  // 三级标题
+                            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')  // 支持加粗
+                            .replace(/\* /g, '• ');  // 列表符号
+
+                        body.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${htmlContent}</div>`;
+                    } else {
+                        body.innerHTML = `<div class="no-hack-info">该游戏机目录下暂无 HACK.txt 文件<br><br>请在 <code>roms/${selectedSystem}/HACK.txt</code> 创建说明文件</div>`;
+                    }
+                } catch (error) {
+                    console.error('加载HACK文件失败:', error);
+                    body.innerHTML = `<div class="no-hack-info">加载HACK说明失败<br>${error.message}</div>`;
+                }
+            }
+        }
+
+        // 关闭HACK说明弹窗
+        function closeHackModal(event) {
+            const modal = document.getElementById('hackModal');
+            // 如果点击的是背景层，关闭弹窗
+            if (!event || event.target === modal) {
+                modal.classList.remove('show');
+            }
+        }
+
+        // ESC键关闭弹窗
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeHackModal();
+            }
+        });
 
         // 从服务器加载游戏列表
         async function loadGames() {
@@ -434,16 +747,30 @@
         // 筛选游戏
         function filterGames() {
             const selectedSystem = document.getElementById('systemFilter').value;
+            const searchText = document.getElementById('search-input').value.toLowerCase().trim();
             const allGames = window.allGamesList || [];
 
-            if (selectedSystem === 'all') {
-                // 显示所有游戏
-                renderGames(allGames);
-            } else {
-                // 根据游戏机筛选
-                const filteredGames = allGames.filter(game => game.system === selectedSystem);
-                renderGames(filteredGames);
+            let filteredGames = allGames;
+
+            // 1. 按游戏机筛选
+            if (selectedSystem !== 'all') {
+                filteredGames = filteredGames.filter(game => game.system === selectedSystem);
             }
+
+            // 2. 按搜索关键词筛选
+            if (searchText) {
+                filteredGames = filteredGames.filter(game => {
+                    const gameName = game.name.toLowerCase();
+                    const gameFile = game.file.toLowerCase();
+                    const gameDesc = (game.description || '').toLowerCase();
+
+                    return gameName.includes(searchText) ||
+                           gameFile.includes(searchText) ||
+                           gameDesc.includes(searchText);
+                });
+            }
+
+            renderGames(filteredGames);
         }
 
         // 启动游戏
