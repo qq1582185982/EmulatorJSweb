@@ -263,7 +263,7 @@ function handleAPI(req, res, pathname, parsedUrl) {
 
     // 获取游戏列表
     if (pathname === '/api/list-games' && req.method === 'GET') {
-        listGames(req, res);
+        listGames(req, res, parsedUrl);
     }
     // 保存存档
     else if (pathname === '/api/save-state' && req.method === 'POST') {
@@ -292,8 +292,14 @@ function handleAPI(req, res, pathname, parsedUrl) {
 }
 
 // 列出游戏
-function listGames(req, res) {
+function listGames(req, res, parsedUrl) {
     const romsDir = './roms';
+
+    // 分页参数
+    const offset = parseInt(parsedUrl.searchParams.get('offset')) || 0;
+    const limit = parseInt(parsedUrl.searchParams.get('limit')) || 20; // 默认每次加载20个游戏
+    const systemFilter = parsedUrl.searchParams.get('system'); // 可选的系统过滤
+
     const systems = {
         // Nintendo
         'nes': { name: '任天堂 NES', icon: '🎮', color: '#E60012', extensions: ['.nes', '.zip'] },
@@ -336,14 +342,17 @@ function listGames(req, res) {
         'coleco': { name: 'ColecoVision', icon: '🎮', color: '#4682B4', extensions: ['.col', '.zip'] }
     };
 
-    const result = [];
+    // 收集所有游戏（扁平化列表）
+    const allGames = [];
 
     for (const [systemId, systemInfo] of Object.entries(systems)) {
+        // 如果有系统过滤，只处理该系统
+        if (systemFilter && systemId !== systemFilter) continue;
+
         const systemPath = path.join(romsDir, systemId);
 
         if (!fs.existsSync(systemPath)) continue;
 
-        const games = [];
         const files = fs.readdirSync(systemPath);
         const processedGames = new Set(); // 跟踪已处理的游戏
 
@@ -375,7 +384,11 @@ function listGames(req, res) {
                     mainFile = file;  // 保持使用 .mdf 文件
                 }
 
-                games.push({
+                allGames.push({
+                    system: systemId,
+                    systemName: systemInfo.name,
+                    icon: systemInfo.icon,
+                    color: systemInfo.color,
                     name: baseName,
                     file: mainFile,
                     desc: ''
@@ -384,20 +397,49 @@ function listGames(req, res) {
                 processedGames.add(baseName);
             }
         });
+    }
 
-        if (games.length > 0) {
-            result.push({
-                system: systemId,
-                systemName: systemInfo.name,
-                icon: systemInfo.icon,
-                color: systemInfo.color,
-                games: games
-            });
+    // 应用分页
+    const totalGames = allGames.length;
+    const paginatedGames = allGames.slice(offset, offset + limit);
+
+    // 按系统重新分组
+    const result = [];
+    const systemGroups = {};
+
+    paginatedGames.forEach(game => {
+        if (!systemGroups[game.system]) {
+            systemGroups[game.system] = {
+                system: game.system,
+                systemName: game.systemName,
+                icon: game.icon,
+                color: game.color,
+                games: []
+            };
         }
+
+        systemGroups[game.system].games.push({
+            name: game.name,
+            file: game.file,
+            desc: game.desc
+        });
+    });
+
+    // 转换为数组
+    for (const systemGroup of Object.values(systemGroups)) {
+        result.push(systemGroup);
     }
 
     res.writeHead(200);
-    res.end(JSON.stringify(result));
+    res.end(JSON.stringify({
+        games: result,
+        pagination: {
+            offset: offset,
+            limit: limit,
+            total: totalGames,
+            hasMore: offset + limit < totalGames
+        }
+    }));
 }
 
 // 保存存档

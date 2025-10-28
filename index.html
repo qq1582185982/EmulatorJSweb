@@ -680,16 +680,46 @@
         });
 
         // 从服务器加载游戏列表
-        async function loadGames() {
+        // 懒加载配置
+        let currentOffset = 0;
+        let isLoading = false;
+        let hasMoreGames = true;
+        const BATCH_SIZE = 20; // 每次加载20个游戏
+
+        async function loadGames(reset = false) {
+            if (isLoading || (!reset && !hasMoreGames)) return;
+
+            if (reset) {
+                currentOffset = 0;
+                hasMoreGames = true;
+                window.allGamesList = [];
+                document.getElementById('gamesGrid').innerHTML = '';
+            }
+
+            isLoading = true;
+
             try {
-                const response = await fetch('/api/list-games');
-                const systems = await response.json();
+                // 获取当前筛选条件
+                const selectedSystem = document.getElementById('systemFilter').value;
+                const searchText = document.getElementById('search-input').value.toLowerCase().trim();
+
+                // 构建请求URL
+                let url = `/api/list-games?offset=${currentOffset}&limit=${BATCH_SIZE}`;
+                if (selectedSystem !== 'all') {
+                    url += `&system=${selectedSystem}`;
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                const systems = data.games;
+                const pagination = data.pagination;
 
                 // 转换为扁平的游戏列表
-                const allGames = [];
+                const newGames = [];
                 systems.forEach(sys => {
                     sys.games.forEach(game => {
-                        allGames.push({
+                        newGames.push({
                             system: sys.system,
                             name: game.name,
                             file: game.file,
@@ -698,17 +728,53 @@
                     });
                 });
 
-                window.allGamesList = allGames;
-                window.systemsList = systems;
-                renderGames(allGames);
+                // 应用搜索过滤（客户端筛选）
+                let filteredGames = newGames;
+                if (searchText) {
+                    filteredGames = newGames.filter(game =>
+                        game.name.toLowerCase().includes(searchText)
+                    );
+                }
+
+                // 合并到全局列表
+                if (!window.allGamesList) window.allGamesList = [];
+                window.allGamesList.push(...filteredGames);
+
+                // 更新分页状态
+                currentOffset = pagination.offset + pagination.limit;
+                hasMoreGames = pagination.hasMore;
+
+                // 追加渲染新游戏
+                appendGames(filteredGames);
+
+                // 如果没有游戏显示提示
+                if (window.allGamesList.length === 0 && !hasMoreGames) {
+                    document.getElementById('gamesGrid').style.display = 'none';
+                    document.getElementById('noGames').style.display = 'block';
+                } else {
+                    document.getElementById('gamesGrid').style.display = 'grid';
+                    document.getElementById('noGames').style.display = 'none';
+                }
+
+                // 搜索模式：如果有搜索条件且结果少于10个，继续加载
+                if (searchText && filteredGames.length < 10 && hasMoreGames) {
+                    isLoading = false;
+                    await loadGames(false); // 递归加载更多
+                    return;
+                }
+
             } catch (error) {
                 console.error('加载游戏列表失败:', error);
-                document.getElementById('gamesGrid').style.display = 'none';
-                document.getElementById('noGames').style.display = 'block';
+                if (currentOffset === 0) {
+                    document.getElementById('gamesGrid').style.display = 'none';
+                    document.getElementById('noGames').style.display = 'block';
+                }
+            } finally {
+                isLoading = false;
             }
         }
 
-        // 渲染游戏列表
+        // 渲染游戏列表（清空并重新渲染）
         function renderGames(games) {
             const grid = document.getElementById('gamesGrid');
             const noGames = document.getElementById('noGames');
@@ -744,33 +810,35 @@
             });
         }
 
-        // 筛选游戏
+        // 追加游戏到列表（用于懒加载）
+        function appendGames(games) {
+            const grid = document.getElementById('gamesGrid');
+
+            games.forEach(game => {
+                const systemInfo = gamesConfig[game.system] || { name: game.system, color: '#666', icon: '🎮' };
+                const card = document.createElement('div');
+                card.className = 'game-card';
+                card.onclick = () => playGame(game.system, game.file);
+
+                card.innerHTML = `
+                    <div class="game-image" style="background: ${systemInfo.color}">
+                        <span>${systemInfo.icon}</span>
+                    </div>
+                    <div class="game-info">
+                        <div class="game-title">${game.name}</div>
+                        <span class="game-system">${systemInfo.name}</span>
+                        <div class="game-desc">${game.description || '经典游戏'}</div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        // 筛选游戏（触发重新加载）
         function filterGames() {
-            const selectedSystem = document.getElementById('systemFilter').value;
-            const searchText = document.getElementById('search-input').value.toLowerCase().trim();
-            const allGames = window.allGamesList || [];
-
-            let filteredGames = allGames;
-
-            // 1. 按游戏机筛选
-            if (selectedSystem !== 'all') {
-                filteredGames = filteredGames.filter(game => game.system === selectedSystem);
-            }
-
-            // 2. 按搜索关键词筛选
-            if (searchText) {
-                filteredGames = filteredGames.filter(game => {
-                    const gameName = game.name.toLowerCase();
-                    const gameFile = game.file.toLowerCase();
-                    const gameDesc = (game.description || '').toLowerCase();
-
-                    return gameName.includes(searchText) ||
-                           gameFile.includes(searchText) ||
-                           gameDesc.includes(searchText);
-                });
-            }
-
-            renderGames(filteredGames);
+            // 重置并重新加载游戏列表
+            loadGames(true);
         }
 
         // 启动游戏
@@ -787,6 +855,27 @@
             }
         }
 
+        // 无限滚动检测
+        function setupInfiniteScroll() {
+            let scrollTimeout;
+            window.addEventListener('scroll', () => {
+                // 防抖处理
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    const windowHeight = window.innerHeight;
+                    const documentHeight = document.documentElement.scrollHeight;
+
+                    // 距离底部200px时触发加载
+                    if (scrollTop + windowHeight >= documentHeight - 200) {
+                        if (!isLoading && hasMoreGames) {
+                            loadGames(false);
+                        }
+                    }
+                }, 100);
+            });
+        }
+
         // 页面加载时初始化
         window.onload = () => {
             // 检查登录状态
@@ -801,6 +890,11 @@
 
             // 已登录，显示用户名并加载游戏
             document.querySelector('.subtitle').textContent = `欢迎回来，${username}！在线游玩经典游戏，存档自动云端保存`;
+
+            // 初始化无限滚动
+            setupInfiniteScroll();
+
+            // 加载第一批游戏
             loadGames();
         };
     </script>
