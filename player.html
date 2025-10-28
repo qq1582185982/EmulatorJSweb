@@ -568,6 +568,9 @@
             window.EJS_disableDatabases = true; // 禁用IndexedDB本地存储
             window.EJS_gameName = romFile.replace(/\.[^/.]+$/, ''); // 设置游戏名称
 
+            // 配置存档路径 - 加上用户ID和系统参数,实现用户隔离
+            window.EJS_pathtoSaves = `/saves?userId=${userId}&system=${system}`;
+
             // RetroArch配置 - 中文界面和服务器存档
             window.EJS_defaultOptions = {
                 'user_language': 18,  // 18 = Chinese Simplified (简体中文)

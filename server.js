@@ -4,7 +4,7 @@ const path = require('path');
 const url = require('url');
 const crypto = require('crypto');
 
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 const SAVES_DIR = './saves';
 const USERS_FILE = './users.json';
 
@@ -61,6 +61,74 @@ function generateUserId(username) {
     return 'user_' + crypto.createHash('md5').update(username + Date.now()).digest('hex');
 }
 
+// 处理存档文件(.srm)请求 - 实现用户隔离
+function handleSaveFile(req, res, pathname, parsedUrl) {
+    // 获取用户ID (从 cookie 或 query 参数)
+    const userId = parsedUrl.searchParams.get('userId') || getCookieValue(req.headers.cookie, 'userId') || 'default';
+
+    // 解析路径: /saves/游戏名.srm -> saves/userId/system/游戏名.srm
+    const fileName = pathname.replace('/saves/', '');
+    const system = parsedUrl.searchParams.get('system') || 'unknown';
+
+    // 构建用户专属路径
+    const userSavePath = path.join(SAVES_DIR, userId, system, fileName);
+
+    if (req.method === 'GET') {
+        // 读取存档
+        fs.readFile(userSavePath, (error, content) => {
+            if (error) {
+                if (error.code === 'ENOENT') {
+                    res.writeHead(404);
+                    res.end();
+                } else {
+                    res.writeHead(500);
+                    res.end('读取存档失败');
+                }
+            } else {
+                res.writeHead(200, {
+                    'Content-Type': 'application/octet-stream',
+                    'Cross-Origin-Opener-Policy': 'same-origin',
+                    'Cross-Origin-Embedder-Policy': 'require-corp'
+                });
+                res.end(content);
+            }
+        });
+    } else if (req.method === 'POST' || req.method === 'PUT') {
+        // 保存存档
+        let body = [];
+        req.on('data', chunk => {
+            body.push(chunk);
+        });
+        req.on('end', () => {
+            const buffer = Buffer.concat(body);
+            const dir = path.dirname(userSavePath);
+
+            // 确保目录存在
+            fs.mkdirSync(dir, { recursive: true });
+
+            fs.writeFile(userSavePath, buffer, (error) => {
+                if (error) {
+                    res.writeHead(500);
+                    res.end('保存存档失败');
+                } else {
+                    res.writeHead(200);
+                    res.end('存档保存成功');
+                }
+            });
+        });
+    } else {
+        res.writeHead(405);
+        res.end('Method Not Allowed');
+    }
+}
+
+// 从 Cookie 中提取值
+function getCookieValue(cookieHeader, name) {
+    if (!cookieHeader) return null;
+    const match = cookieHeader.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? match[2] : null;
+}
+
 const server = http.createServer((req, res) => {
     console.log(`${req.method} ${req.url}`);
 
@@ -70,6 +138,12 @@ const server = http.createServer((req, res) => {
     // API路由处理
     if (pathname.startsWith('/api/')) {
         handleAPI(req, res, pathname, parsedUrl);
+        return;
+    }
+
+    // 拦截 /saves/ 路径,实现用户隔离
+    if (pathname.startsWith('/saves/')) {
+        handleSaveFile(req, res, pathname, parsedUrl);
         return;
     }
 
